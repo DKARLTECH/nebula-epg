@@ -7,6 +7,9 @@
  *   GET  /version       — read version config  (public — called by the app)
  *   POST /version       — update version config (requires X-App-Secret)
  *
+ * /version response includes: min_version, latest_version, store_url, apk_url
+ * The app uses apk_url (direct APK link) when store_url is empty.
+ *
  * KV namespace binding: COUNTER
  * Secret:               APP_SECRET  (set as a Worker env variable in Cloudflare dashboard)
  *
@@ -54,15 +57,17 @@ export default {
 
     // ── GET /version — public; app calls this on every launch ────────────
     if (method === 'GET' && path === '/version') {
-      const [minVersion, latestVersion, storeUrl] = await Promise.all([
+      const [minVersion, latestVersion, storeUrl, apkUrl] = await Promise.all([
         env.COUNTER.get('min_version'),
         env.COUNTER.get('latest_version'),
         env.COUNTER.get('store_url'),
+        env.COUNTER.get('apk_url'),
       ]);
       return json({
         min_version:    minVersion    ?? '1.0.0',
         latest_version: latestVersion ?? '1.0.0',
         store_url:      storeUrl      ?? '',
+        apk_url:        apkUrl        ?? '',
       }, 200, corsHeaders);
     }
 
@@ -77,6 +82,7 @@ export default {
       if (body.min_version    != null) puts.push(env.COUNTER.put('min_version',    body.min_version));
       if (body.latest_version != null) puts.push(env.COUNTER.put('latest_version', body.latest_version));
       if (body.store_url      != null) puts.push(env.COUNTER.put('store_url',      body.store_url));
+      if (body.apk_url        != null) puts.push(env.COUNTER.put('apk_url',        body.apk_url));
       await Promise.all(puts);
       return json({ ok: true }, 200, corsHeaders);
     }
